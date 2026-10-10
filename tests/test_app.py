@@ -69,3 +69,24 @@ def test_paper_trading_stub_broker():
 def test_optimizer_page_loads():
     at = _run(APP / "pages" / "4_Optimizer.py")
     assert not at.exception, at.exception
+
+
+def test_optimizer_results_survive_rerun():
+    at = AppTest.from_file(str(APP / "pages" / "4_Optimizer.py"), default_timeout=180).run()
+    at.selectbox(key="opt_prov").set_value("synthetic").run()
+    next(b for b in at.button if b.label == "Run grid search").click().run()
+    assert not at.exception, at.exception
+    assert len(at.dataframe) == 1
+    at.run()  # e.g. the rerun triggered by the download button
+    assert len(at.dataframe) == 1
+
+
+def test_paper_rejected_manual_order_shows_error():
+    at = AppTest.from_file(str(APP / "pages" / "5_Paper_Trading.py"), default_timeout=60).run()
+    at.session_state["broker_simulated"].set_price("AAPL", 100.0)
+    side = next(s for s in at.selectbox if s.label == "Side")
+    side.set_value("sell")
+    next(b for b in at.button if b.label == "Submit paper order").click().run()
+    assert not at.exception, at.exception
+    assert any("rejected" in e.value for e in at.error)
+    assert not any("rejected" in s.value for s in at.success)

@@ -50,19 +50,22 @@ if st.button("Run grid search", type="primary", disabled=n == 0 or n > 400):
             split_date=split,
             on_progress=lambda i, t: bar.progress(i / t),
         )
-        sort_col = f"oos_{metric}"
-        if sort_col in df:
-            df = df.sort_values(
-                sort_col, ascending=False
-            )  # max_drawdown is negative: higher is better
-        cols = (
-            list(grid)
-            + [
-                c
-                for c in df.columns
-                if c.split("_", 1)[-1] in ("sharpe", "cagr", "max_drawdown", "calmar", "sortino")
-            ]
-            + (["error"] if "error" in df else [])
-        )
-        st.dataframe(df[cols], use_container_width=True)
-        st.download_button("Download results", df.to_csv(index=False).encode(), "grid_search.csv")
+        st.session_state["grid_results"] = (df, list(grid))
+
+saved = st.session_state.get("grid_results")
+if saved is not None:
+    df, grid_keys = saved
+    sort_col = f"oos_{metric}"
+    if sort_col in df:
+        df = df.sort_values(sort_col, ascending=False)  # max_drawdown is negative: higher is better
+    cols = (
+        [k for k in grid_keys if k in df]
+        + [
+            c
+            for c in df.columns
+            if c.split("_", 1)[-1] in ("sharpe", "cagr", "max_drawdown", "calmar", "sortino")
+        ]
+        + (["error"] if "error" in df else [])
+    )
+    st.dataframe(df[cols], use_container_width=True)
+    st.download_button("Download results", df.to_csv(index=False).encode(), "grid_search.csv")

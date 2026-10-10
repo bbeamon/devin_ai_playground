@@ -33,7 +33,7 @@ class PreTradeRiskChecker:
             reasons.append("zero quantity")
         if price <= 0:
             reasons.append("non-positive price")
-        if notional > s.max_order_notional:
+        if notional > s.max_order_notional * (1 + 1e-9) + 1e-6:
             reasons.append(
                 f"order notional ${notional:,.2f} exceeds max ${s.max_order_notional:,.2f}"
             )

@@ -105,6 +105,9 @@ class SimulatedBroker(Broker):
         current_qty = self._positions.get(sym, (0.0, 0.0))[0]
         if not self.allow_short and current_qty + request.signed_qty < -1e-9:
             order.status = OrderStatus.REJECTED
+            order.reject_reason = (
+                f"sell of {request.qty:g} exceeds position of {current_qty:g} (shorting disabled)"
+            )
         self._orders[order.id] = order
         if order.status != OrderStatus.REJECTED:
             self._try_fill(order)
@@ -135,6 +138,9 @@ class SimulatedBroker(Broker):
         fee = self.costs.commission(signed, fill)
         if signed > 0 and signed * fill + fee > self.cash + 1e-6:
             order.status = OrderStatus.REJECTED
+            order.reject_reason = (
+                f"insufficient cash: need ${signed * fill + fee:,.2f}, have ${self.cash:,.2f}"
+            )
             return
         self.cash -= signed * fill + fee
         qty, avg = self._positions.get(order.symbol, (0.0, 0.0))

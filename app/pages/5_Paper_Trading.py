@@ -21,6 +21,14 @@ st.set_page_config(page_title="Paper Trading", layout="wide")
 st.title("Paper Trading")
 st.warning(_common.PAPER_BANNER)
 
+
+def flash(level: str, msg: str) -> None:
+    st.session_state.setdefault("paper_flash", []).append((level, msg))
+
+
+for level, msg in st.session_state.pop("paper_flash", []):
+    getattr(st, level)(msg)
+
 settings = _common.get_settings()
 broker_name = st.sidebar.selectbox(
     "Broker", ["simulated", "alpaca_paper", "ibkr", "schwab", "fidelity"]
@@ -117,10 +125,14 @@ if report is not None:
     if st.button("Submit approved orders", type="primary", disabled=not confirm):
         Rebalancer(broker, settings.risk).execute(report)
         for o in report.submitted:
-            st.success(f"{o.side.value} {o.qty:g} {o.symbol}: {o.status.value}")
+            if o.status.value == "rejected":
+                flash("error", f"{o.side.value} {o.qty:g} {o.symbol}: rejected - {o.reject_reason}")
+            else:
+                flash("success", f"{o.side.value} {o.qty:g} {o.symbol}: {o.status.value}")
         for e in report.errors:
-            st.error(e)
+            flash("error", e)
         st.session_state.pop("plan")
+        st.rerun()
 
 st.subheader("Manual order")
 with st.form("manual"):
@@ -151,12 +163,18 @@ with st.form("manual"):
                 stop_price=limit or None if t in (OrderType.STOP, OrderType.STOP_LIMIT) else None,
             )
             o = broker.submit_order(req)
-            st.success(f"Order {o.id}: {o.status.value}")
         except (BrokerError, ValueError, LiveTradingDisabledError) as exc:
             st.error(str(exc))
+        else:
+            if o.status.value == "rejected":
+                flash("error", f"Order {o.id} rejected: {o.reject_reason or 'see broker'}")
+            else:
+                flash("success", f"Order {o.id}: {o.status.value}")
+            st.rerun()
 
 st.subheader("Orders")
 orders = broker.list_orders("all")
 st.dataframe(pd.DataFrame([o.__dict__ for o in orders]), use_container_width=True)
 if st.button("Cancel all open orders"):
-    st.write(f"Canceled {broker.cancel_all_orders()} orders")
+    flash("info", f"Canceled {broker.cancel_all_orders()} orders")
+    st.rerun()

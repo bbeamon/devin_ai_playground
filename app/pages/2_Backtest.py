@@ -73,11 +73,18 @@ else:
 
 with st.sidebar.expander("Execution & costs"):
     bt = base.backtest
-    initial_cash = st.number_input("Initial cash", value=float(bt.initial_cash), step=10_000.0)
-    slippage = st.number_input("Slippage (bps)", value=float(bt.slippage_bps), step=1.0)
+    initial_cash = st.number_input(
+        "Initial cash", min_value=1.0, value=float(bt.initial_cash), step=10_000.0
+    )
+    slippage = st.number_input(
+        "Slippage (bps)", min_value=0.0, value=float(bt.slippage_bps), step=1.0
+    )
     commission_pct = (
         st.number_input(
-            "Commission (% of notional)", value=float(bt.commission_pct * 100), step=0.01
+            "Commission (% of notional)",
+            min_value=0.0,
+            value=float(bt.commission_pct * 100),
+            step=0.01,
         )
         / 100
     )
@@ -87,6 +94,7 @@ with st.sidebar.expander("Execution & costs"):
     allow_short = st.checkbox("Allow short", value=bt.allow_short)
     threshold = st.number_input(
         "Rebalance threshold (weight)",
+        min_value=0.0,
         value=float(bt.rebalance_threshold),
         step=0.005,
         format="%.3f",
@@ -97,24 +105,28 @@ with st.sidebar.expander("Risk limits"):
     max_gross = st.slider("Max gross leverage", 0.1, 2.0, float(rk.max_gross_leverage), 0.1)
 
 if cfg is not None and st.sidebar.button("Run backtest", type="primary"):
-    settings = Settings(
-        data=base.data,
-        backtest=BacktestSettings(
-            **{
-                **bt.model_dump(),
-                "initial_cash": initial_cash,
-                "slippage_bps": slippage,
-                "commission_pct": commission_pct,
-                "execution": execution,
-                "allow_short": allow_short,
-                "rebalance_threshold": threshold,
-            }
-        ),
-        risk=rk.model_copy(
-            update={"max_position_weight": max_pos, "max_gross_leverage": max_gross}
-        ),
-        broker=base.broker,
-    )
+    try:
+        settings = Settings(
+            data=base.data,
+            backtest=BacktestSettings(
+                **{
+                    **bt.model_dump(),
+                    "initial_cash": initial_cash,
+                    "slippage_bps": slippage,
+                    "commission_pct": commission_pct,
+                    "execution": execution,
+                    "allow_short": allow_short,
+                    "rebalance_threshold": threshold,
+                }
+            ),
+            risk=rk.model_copy(
+                update={"max_position_weight": max_pos, "max_gross_leverage": max_gross}
+            ),
+            broker=base.broker,
+        )
+    except ValidationError as exc:
+        st.error(f"Invalid execution/cost settings: {exc}")
+        st.stop()
     symbols = cfg.universe + (
         [cfg.benchmark] if cfg.benchmark and cfg.benchmark not in cfg.universe else []
     )

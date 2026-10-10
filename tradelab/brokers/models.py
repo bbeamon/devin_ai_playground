@@ -100,6 +100,7 @@ class Order:
     client_order_id: str | None = None
     submitted_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     broker: str = ""
+    reject_reason: str | None = None
 
 
 @dataclass

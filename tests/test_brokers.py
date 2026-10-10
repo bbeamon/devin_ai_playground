@@ -292,3 +292,24 @@ def test_rebalancer_whole_shares():
         b, RiskSettings(max_position_weight=1, max_order_notional=1e9), fractional=False
     ).plan(pd.Series({"A": 1.0}))
     assert plan.proposed[0].qty == 3
+
+
+def test_pre_trade_limit_boundary_is_inclusive_under_float_error():
+    from tradelab.config import RiskSettings
+    from tradelab.risk.limits import PreTradeRiskChecker
+
+    c = PreTradeRiskChecker(RiskSettings(max_order_notional=25_000, max_position_weight=0.25))
+    price, equity = 137.13, 100_000.0
+    qty = 0.25 * equity / price  # notional == 25,000 up to float rounding
+    assert c.check_order("X", qty, price, equity).approved
+
+
+def test_simulated_rejections_carry_reason():
+    from tradelab.brokers import OrderRequest, OrderSide, SimulatedBroker
+
+    b = SimulatedBroker(initial_cash=100)
+    b.set_price("A", 50)
+    short = b.submit_order(OrderRequest("A", 1, OrderSide.SELL))
+    assert short.status.value == "rejected" and "shorting disabled" in short.reject_reason
+    broke = b.submit_order(OrderRequest("A", 10, OrderSide.BUY))
+    assert broke.status.value == "rejected" and "insufficient cash" in broke.reject_reason
