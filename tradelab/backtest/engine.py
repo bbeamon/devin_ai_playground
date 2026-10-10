@@ -64,6 +64,13 @@ class Backtester:
         self.risk = risk or RiskSettings()
         self.costs = CostModel.from_settings(self.settings)
 
+    def _affordable_qty(self, cash: float, fill: float) -> float:
+        c = self.costs
+        if cash <= 0:
+            return 0.0
+        per_unit = fill + c.commission_per_share + c.commission_pct * fill
+        return max(0.0, min(cash / per_unit, (cash - c.min_commission) / fill))
+
     def run(
         self,
         data: dict[str, pd.DataFrame],
@@ -100,6 +107,7 @@ class Backtester:
             equity = cash + held.sum()
             if equity <= 0:
                 return
+            orders: list[tuple[int, float]] = []
             for j in range(m):
                 price = px[j]
                 if np.isnan(price) or price <= 0:
@@ -111,10 +119,17 @@ class Backtester:
                 desired = target[j] * equity / price
                 if not s.fractional_shares:
                     desired = float(np.trunc(desired))
-                delta = desired - shares[j]
+                orders.append((j, desired - shares[j]))
+            # Sells first so their proceeds fund buys; without leverage, buys are capped at cash.
+            for j, delta in sorted(orders, key=lambda o: o[1] > 0):
+                price = px[j]
+                fill = self.costs.fill_price(price, delta)
+                if delta > 0 and self.risk.max_gross_leverage <= 1.0:
+                    delta = min(delta, self._affordable_qty(cash, fill))
+                    if not s.fractional_shares:
+                        delta = float(np.floor(delta))
                 if abs(delta * price) < max(self.risk.min_trade_notional, 1e-9):
                     continue
-                fill = self.costs.fill_price(price, delta)
                 fee = self.costs.commission(delta, fill)
                 cash -= delta * fill + fee
                 shares[j] += delta
@@ -143,7 +158,8 @@ class Backtester:
             pos_hist[i] = shares
 
         equity = pd.Series(equity_hist, index=index, name="equity")
-        returns = equity.pct_change().fillna(0.0).rename("returns")
+        # First return is measured from initial cash so day-0 trading costs are included.
+        returns = (equity / equity.shift(1, fill_value=float(s.initial_cash)) - 1).rename("returns")
         positions = pd.DataFrame(pos_hist, index=index, columns=symbols)
         held_value = positions * closes.ffill().fillna(0.0)
         weights = held_value.div(equity.replace(0, np.nan), axis=0).fillna(0.0)

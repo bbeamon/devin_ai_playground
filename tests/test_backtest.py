@@ -164,3 +164,20 @@ def test_grid_search(universe_data):
     assert df["sharpe"].notna().sum() == 5
     split = grid_search(cfg, {"fast": [5]}, universe_data, split_date="2022-01-01")
     assert {"is_sharpe", "oos_sharpe"} <= set(split.columns)
+
+
+def test_costs_never_drive_cash_negative_without_leverage(universe_data):
+    s = BacktestSettings(commission_per_share=0.01, min_commission=1.0, slippage_bps=20)
+    risk = RiskSettings(max_position_weight=0.5, max_gross_leverage=1.0)
+    w = pd.DataFrame(0.5, index=universe_data["AAA"].index, columns=["AAA", "BBB"])
+    res = Backtester(s, risk).run({k: universe_data[k] for k in w.columns}, w)
+    assert res.cash.min() >= -1e-9
+    assert res.weights.abs().sum(axis=1).max() <= 1.0 + 1e-9
+
+
+def test_day_zero_costs_included_in_returns():
+    df = make_ohlcv([100, 100, 100])
+    s = BacktestSettings(execution="close", commission_pct=0.01, min_commission=0.0)
+    res = Backtester(s, RISK).run({"A": df}, weights_for(df, 1.0))
+    assert res.returns.iloc[0] < 0
+    assert (1 + res.returns).prod() * s.initial_cash == pytest.approx(res.equity.iloc[-1])
