@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tradelab"
+version = "0.1.0"
+description = "Modular algorithmic trading research platform (backtesting, risk analytics, paper trading). Live-money trading is disabled."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "PyYAML>=5.4",
+    "plotly>=5.18",
+    "streamlit>=1.32",
+    "yfinance>=0.2.40",
+    "alpaca-py>=0.30",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4", "mypy>=1.8", "pandas-stubs", "types-PyYAML"]
+
+[tool.setuptools.packages.find]
+include = ["tradelab*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = ["network: tests that require internet access (deselect with -m 'not network')"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+plugins = ["pydantic.mypy"]

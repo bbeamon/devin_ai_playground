@@ -1,0 +1,14 @@
+name: RSI(14) mean reversion - sector ETFs
+strategy: rsi_mean_reversion
+params:
+  period: 14
+  oversold: 30
+  overbought: 70
+universe: [XLK, XLF, XLE, XLV, XLY]
+start: 2015-01-01
+end: 2024-12-31
+benchmark: SPY
+sizing:
+  method: vol_target
+  target_vol: 0.10
+  vol_lookback: 20
