@@ -1,0 +1,11 @@
+name: SMA 20/50 crossover - mega-cap tech
+strategy: sma_crossover
+params:
+  fast: 20
+  slow: 50
+universe: [AAPL, MSFT, NVDA, GOOGL]
+start: 2018-01-01
+end: 2024-12-31
+benchmark: SPY
+sizing:
+  method: equal_weight

@@ -1,0 +1,15 @@
+name: Trend + momentum ensemble
+strategy: ensemble
+components:
+  - strategy: sma_crossover
+    params: {fast: 50, slow: 200}
+    weight: 0.5
+  - strategy: momentum
+    params: {lookback: 126}
+    weight: 0.5
+universe: [SPY, QQQ, IWM, TLT, GLD]
+start: 2012-01-01
+end: 2024-12-31
+benchmark: SPY
+sizing:
+  method: equal_weight

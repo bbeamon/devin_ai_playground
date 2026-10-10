@@ -1,0 +1,29 @@
+# tradelab default configuration. Override by passing another YAML file to load_settings().
+data:
+  provider: yahoo            # yahoo | alpaca | csv | synthetic
+  cache_enabled: true
+  cache_dir: .cache/data
+  csv_dir: data/csv          # used by the csv provider: <csv_dir>/<SYMBOL>.csv
+
+backtest:
+  initial_cash: 100000
+  commission_per_share: 0.0
+  commission_pct: 0.0        # fraction of notional, e.g. 0.0005 = 5 bps
+  min_commission: 0.0
+  slippage_bps: 5.0
+  execution: next_open       # next_open (conservative) | close
+  allow_short: false
+  fractional_shares: true
+  rebalance_threshold: 0.01  # min |target - current| weight change to trade
+
+risk:
+  risk_free_rate: 0.02
+  max_position_weight: 0.25  # per-symbol cap on |weight|
+  max_gross_leverage: 1.0    # sum of |weights|
+  max_order_notional: 25000  # paper-trading pre-trade check
+  max_orders_per_run: 50
+  min_trade_notional: 1.0    # skip dust orders
+
+broker:
+  name: simulated            # simulated | alpaca_paper | ibkr | schwab | fidelity
+  trading_mode: paper        # ONLY "paper" is accepted; live trading is disabled
