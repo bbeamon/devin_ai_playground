@@ -8,7 +8,7 @@ from tradelab.backtest import grid_search
 from tradelab.strategies import StrategyConfig, list_strategies
 
 st.set_page_config(page_title="Optimizer", layout="wide")
-st.title("Parameter optimizer")
+_common.page_header("Parameter optimizer", "Grid-search parameters and judge them out-of-sample.")
 st.caption(
     "Grid search with an in-sample / out-of-sample split. Beware of over-fitting: judge on OOS metrics."
 )

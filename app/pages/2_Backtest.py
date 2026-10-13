@@ -2,6 +2,7 @@ import datetime as dt
 import json
 
 import _common
+import pandas as pd
 import streamlit as st
 import yaml
 from pydantic import ValidationError
@@ -12,7 +13,7 @@ from tradelab.strategies import StrategyConfig, list_strategies
 from tradelab.ui import charts
 
 st.set_page_config(page_title="Backtest", layout="wide")
-st.title("Backtest")
+_common.page_header("Backtest", "Run a cost-aware simulation of a strategy on historical data.")
 
 base = _common.get_settings()
 mode = st.sidebar.radio("Configure via", ["Form", "YAML"], horizontal=True)
@@ -130,6 +131,8 @@ if cfg is not None and st.sidebar.button("Run backtest", type="primary"):
     symbols = cfg.universe + (
         [cfg.benchmark] if cfg.benchmark and cfg.benchmark not in cfg.universe else []
     )
+    for stale in ("last_result", "last_data"):
+        st.session_state.pop(stale, None)
     data = _common.safe_load(
         provider, symbols, cfg.start or dt.date(2010, 1, 1), cfg.end or dt.date.today()
     )
@@ -170,6 +173,18 @@ st.plotly_chart(
 )
 st.plotly_chart(charts.drawdown_chart(result.returns), use_container_width=True)
 st.plotly_chart(charts.weights_chart(result.weights), use_container_width=True)
+
+last_w = result.weights.iloc[-1] if len(result.weights) else pd.Series(dtype=float)
+alloc = last_w[last_w.abs() > 1e-9]
+alloc["Cash"] = max(0.0, 1.0 - float(last_w.sum()))
+left, right = st.columns(2)
+left.plotly_chart(
+    charts.allocation_donut(alloc, f"Allocation on {result.weights.index[-1].date()}"),
+    use_container_width=True,
+)
+right.plotly_chart(charts.monthly_returns_bar(result.returns.iloc[1:]), use_container_width=True)
+if not result.trades.empty:
+    st.plotly_chart(charts.cost_breakdown(result.trades), use_container_width=True)
 
 data = st.session_state.get("last_data", {})
 if result.signals is not None and data:

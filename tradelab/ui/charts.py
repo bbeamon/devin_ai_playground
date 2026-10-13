@@ -8,6 +8,9 @@ from plotly.subplots import make_subplots
 
 from tradelab.risk import metrics as m
 
+PALETTE = ["#22d3ee", "#a78bfa", "#f472b6", "#34d399", "#fbbf24", "#60a5fa", "#fb7185", "#94a3b8"]
+POS, NEG = "#10b981", "#ef4444"
+
 
 def price_chart(
     df: pd.DataFrame,
@@ -169,4 +172,118 @@ def correlation_heatmap(returns: pd.DataFrame) -> go.Figure:
         )
     )
     fig.update_layout(title="Return correlation", height=400, margin={"t": 40})
+    return fig
+
+
+def growth_chart(closes: dict[str, pd.Series]) -> go.Figure:
+    """Growth of $1 invested at each symbol's first bar."""
+    fig = go.Figure()
+    for i, (sym, c) in enumerate(closes.items()):
+        c = c.dropna()
+        if c.empty:
+            continue
+        fig.add_trace(
+            go.Scatter(
+                x=c.index, y=c / c.iloc[0], name=sym, line={"color": PALETTE[i % len(PALETTE)]}
+            )
+        )
+    fig.update_layout(
+        title="Growth of $1", yaxis_tickprefix="$", height=380, margin={"t": 40}, hovermode="x"
+    )
+    return fig
+
+
+def symbol_stats(closes: dict[str, pd.Series]) -> pd.DataFrame:
+    """Total return, annualised volatility and max drawdown per symbol."""
+    rows = {}
+    for sym, c in closes.items():
+        c = c.dropna()
+        if len(c) < 2:
+            continue
+        r = c.pct_change().dropna()
+        rows[sym] = {
+            "total_return": c.iloc[-1] / c.iloc[0] - 1,
+            "volatility": m.annualized_volatility(r),
+            "max_drawdown": m.max_drawdown(r),
+        }
+    return pd.DataFrame.from_dict(rows, orient="index")
+
+
+def stat_bars(
+    values: pd.Series, title: str, fmt: str = ".0%", color: str | None = None
+) -> go.Figure:
+    """Horizontal bars; green/red by sign unless a single ``color`` is given."""
+    v = values.sort_values()
+    fig = go.Figure(
+        go.Bar(
+            x=v.values,
+            y=list(v.index),
+            orientation="h",
+            marker_color=color or [POS if x >= 0 else NEG for x in v.values],
+            text=[f"{x:{fmt}}" for x in v.values],
+            textposition="auto",
+        )
+    )
+    fig.update_layout(
+        title=title, xaxis_tickformat=fmt, height=max(220, 45 * len(v) + 90), margin={"t": 40}
+    )
+    return fig
+
+
+def allocation_donut(values: pd.Series, title: str = "Allocation") -> go.Figure:
+    """Donut of absolute exposure; short positions are labelled ``(short)``."""
+    v = values[values.abs() > 1e-9]
+    labels = [f"{k} (short)" if x < 0 else str(k) for k, x in v.items()]
+    fig = go.Figure(
+        go.Pie(
+            labels=labels,
+            values=v.abs().values,
+            hole=0.55,
+            marker={"colors": PALETTE[: len(v)] if len(v) <= len(PALETTE) else None},
+            textinfo="label+percent",
+            sort=False,
+        )
+    )
+    fig.update_layout(title=title, height=360, margin={"t": 40, "b": 10}, showlegend=False)
+    return fig
+
+
+def monthly_returns(returns: pd.Series) -> pd.Series:
+    r = returns.dropna()
+    if r.empty:
+        return pd.Series(dtype=float)
+    out = (1 + r).groupby(pd.DatetimeIndex(r.index).to_period("M")).prod() - 1
+    out.index = pd.PeriodIndex(out.index).to_timestamp()
+    return out
+
+
+def monthly_returns_bar(returns: pd.Series) -> go.Figure:
+    mr = monthly_returns(returns)
+    fig = go.Figure(
+        go.Bar(x=mr.index, y=mr.values, marker_color=[POS if x >= 0 else NEG for x in mr.values])
+    )
+    fig.update_layout(title="Monthly returns", yaxis_tickformat=".0%", height=320, margin={"t": 40})
+    return fig
+
+
+def cost_breakdown(trades: pd.DataFrame) -> go.Figure:
+    """Stacked commission + slippage cost per symbol."""
+    fig = go.Figure()
+    if trades.empty:
+        return fig
+    by = trades.groupby("symbol")[["commission", "slippage_cost"]].sum()
+    by = by.loc[by.sum(axis=1).sort_values(ascending=False).index]
+    fig.add_trace(
+        go.Bar(x=by.index, y=by["commission"], name="Commission", marker_color=PALETTE[1])
+    )
+    fig.add_trace(
+        go.Bar(x=by.index, y=by["slippage_cost"], name="Slippage", marker_color=PALETTE[0])
+    )
+    fig.update_layout(
+        title="Trading costs by symbol",
+        barmode="stack",
+        yaxis_tickprefix="$",
+        height=320,
+        margin={"t": 40},
+    )
     return fig

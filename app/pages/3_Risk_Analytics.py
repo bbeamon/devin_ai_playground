@@ -6,7 +6,9 @@ from tradelab.risk import metrics as m
 from tradelab.ui import charts
 
 st.set_page_config(page_title="Risk Analytics", layout="wide")
-st.title("Risk Analytics")
+_common.page_header(
+    "Risk Analytics", "Drawdowns, tail risk and rolling metrics for the last backtest."
+)
 
 result = st.session_state.get("last_result")
 if result is None:

@@ -1,6 +1,7 @@
 """Smoke tests for the Streamlit pages using streamlit.testing (offline, synthetic data)."""
 
 import pathlib
+import sys
 
 import pytest
 
@@ -8,6 +9,8 @@ st_testing = pytest.importorskip("streamlit.testing.v1")
 AppTest = st_testing.AppTest
 
 APP = pathlib.Path(__file__).resolve().parent.parent / "app"
+if str(APP) not in sys.path:  # pages import the shared `_common` helper module
+    sys.path.insert(0, str(APP))
 
 
 def _run(path, **state):
@@ -30,6 +33,40 @@ def test_data_explorer_synthetic():
     at.sidebar.selectbox[0].set_value("synthetic").run()
     assert not at.exception
     assert any(m.label == "Bars" for m in at.metric)
+    assert any("Compare tickers" in s.value for s in at.subheader)
+    assert "TradeLab" in " ".join(m.value for m in at.markdown)
+
+
+def test_data_explorer_any_ticker_and_invalid_symbol_warning():
+    at = AppTest.from_file(str(APP / "pages" / "1_Data_Explorer.py"), default_timeout=120).run()
+    at.selectbox(key="explorer_prov").set_value("synthetic")
+    at.text_area(key="explorer_syms").set_value("rtx, $TMUS nvda, BAD!!").run()
+    assert not at.exception, at.exception
+    assert "BAD!!" in at.warning[0].value
+    assert set(next(s for s in at.selectbox if s.label == "Symbol").options) == {
+        "RTX",
+        "TMUS",
+        "NVDA",
+    }
+
+
+def test_data_explorer_only_invalid_symbols_shows_error():
+    at = AppTest.from_file(str(APP / "pages" / "1_Data_Explorer.py"), default_timeout=120).run()
+    at.selectbox(key="explorer_prov").set_value("synthetic")
+    at.text_area(key="explorer_syms").set_value("???").run()
+    assert not at.exception
+    assert "???" in at.error[0].value
+    assert not any(m.label == "Bars" for m in at.metric)
+
+
+@pytest.mark.network
+def test_data_explorer_yahoo_unknown_ticker():
+    at = AppTest.from_file(str(APP / "pages" / "1_Data_Explorer.py"), default_timeout=180).run()
+    at.selectbox(key="explorer_prov").set_value("yahoo")
+    at.text_area(key="explorer_syms").set_value("NVDA, RTX, TMUS, XYZFAKE1").run()
+    assert not at.exception, at.exception
+    assert "XYZFAKE1" in at.warning[0].value
+    assert any(m.label == "Bars" for m in at.metric)
 
 
 def test_backtest_page_runs_synthetic():
@@ -39,6 +76,19 @@ def test_backtest_page_runs_synthetic():
     assert not at.exception, at.exception
     assert "last_result" in at.session_state
     assert any(m.label == "Sharpe" for m in at.metric)
+
+
+def test_backtest_failed_run_clears_previous_result():
+    at = AppTest.from_file(str(APP / "pages" / "2_Backtest.py"), default_timeout=180).run()
+    at.sidebar.selectbox[0].set_value("synthetic").run()
+    at.sidebar.button[0].click().run()
+    assert "last_result" in at.session_state
+    at.sidebar.text_area[0].set_value("AAPL, BAD!!").run()
+    at.sidebar.button[0].click().run()
+    assert not at.exception, at.exception
+    assert any("BAD!!" in e.value for e in at.error)
+    assert "last_result" not in at.session_state
+    assert not any(m.label == "Sharpe" for m in at.metric)
 
 
 def test_risk_page_needs_result_then_renders(universe_data):

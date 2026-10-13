@@ -7,10 +7,14 @@ from tradelab.strategies import indicators as ind
 from tradelab.ui import charts
 
 st.set_page_config(page_title="Data Explorer", layout="wide")
-st.title("Data Explorer")
+_common.page_header(
+    "Data Explorer", "Load prices for any ticker, check data quality and compare performance."
+)
 
-provider, symbols, start, end = _common.sidebar_data_inputs(key="explorer")
-data = _common.safe_load(provider, symbols, start, end)
+provider, symbols, start, end = _common.sidebar_data_inputs(
+    default_symbols="NVDA, RTX, TMUS, AAPL, MSFT", key="explorer"
+)
+data = _common.safe_load(provider, symbols, start, end, allow_partial=True)
 if data:
     sym = st.selectbox("Symbol", list(data))
     df = data[sym]
@@ -38,8 +42,24 @@ if data:
     if show_rsi:
         st.line_chart(ind.rsi(df["close"]).rename("RSI(14)"), height=200)
 
+    closes = {k: v["close"] for k, v in data.items()}
+    st.subheader("Compare tickers")
+    st.plotly_chart(charts.growth_chart(closes), use_container_width=True)
+    stats = charts.symbol_stats(closes)
+    if not stats.empty:
+        a, b = st.columns(2)
+        a.plotly_chart(
+            charts.stat_bars(stats["total_return"], "Total return over period"),
+            use_container_width=True,
+        )
+        b.plotly_chart(
+            charts.stat_bars(
+                stats["volatility"], "Annualised volatility (risk)", color=charts.PALETTE[1]
+            ),
+            use_container_width=True,
+        )
     if len(data) > 1:
-        rets = pd.DataFrame({k: v["close"] for k, v in data.items()}).pct_change().dropna(how="all")
+        rets = pd.DataFrame(closes).pct_change().dropna(how="all")
         st.plotly_chart(charts.correlation_heatmap(rets), use_container_width=True)
     st.subheader("Raw data")
     st.dataframe(df.tail(250), use_container_width=True)
