@@ -9,8 +9,10 @@ from tradelab.ui import charts
 st.set_page_config(page_title="Data Explorer", layout="wide")
 st.title("Data Explorer")
 
-provider, symbols, start, end = _common.sidebar_data_inputs(key="explorer")
-data = _common.safe_load(provider, symbols, start, end)
+provider, symbols, start, end = _common.sidebar_data_inputs(
+    default_symbols="NVDA, RTX, TMUS, AAPL, MSFT", key="explorer"
+)
+data = _common.safe_load(provider, symbols, start, end, allow_partial=True)
 if data:
     sym = st.selectbox("Symbol", list(data))
     df = data[sym]

@@ -112,3 +112,30 @@ class DataProvider(ABC):
                 raise DataError(f"No data returned for {sym} from provider {self.name!r}")
             result[sym.upper()] = df
         return result
+
+    def get_available(
+        self,
+        symbols: Iterable[str],
+        start: DateLike | None = None,
+        end: DateLike | None = None,
+        interval: str = "1d",
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:
+        """Like :meth:`get_many` but never fails on a single bad symbol.
+
+        Returns ``(data, errors)`` where ``errors`` maps each symbol that could not be loaded
+        (unknown ticker, no bars in range, provider error) to a reason.
+        """
+        data: dict[str, pd.DataFrame] = {}
+        errors: dict[str, str] = {}
+        for sym in symbols:
+            key = sym.upper()
+            try:
+                df = self.get_history(sym, start, end, interval)
+            except (DataError, ValueError, KeyError) as exc:
+                errors[key] = str(exc)
+                continue
+            if df.empty:
+                errors[key] = "no data returned (unknown ticker or no bars in range)"
+            else:
+                data[key] = df
+        return data, errors

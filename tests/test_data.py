@@ -124,6 +124,22 @@ def test_get_many_raises_on_empty():
         Empty().get_many(["X"])
 
 
+def test_get_available_reports_bad_symbols():
+    class Partial(DataProvider):
+        name = "partial"
+
+        def fetch(self, symbol, start, end, interval):
+            if symbol == "BAD":
+                return pd.DataFrame()
+            if symbol == "ERR":
+                raise DataError("boom")
+            return SyntheticDataProvider().fetch(symbol, start, end, interval)
+
+    data, errors = Partial().get_available(["good", "BAD", "ERR"], "2022-01-01", "2022-03-01")
+    assert list(data) == ["GOOD"] and not data["GOOD"].empty
+    assert set(errors) == {"BAD", "ERR"} and errors["ERR"] == "boom"
+
+
 def test_factory(tmp_path):
     assert isinstance(
         create_data_provider(DataSettings(provider="synthetic")), SyntheticDataProvider

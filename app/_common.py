@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -30,19 +31,34 @@ def get_settings() -> Settings:
     return load_settings()
 
 
+TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-^=]{0,14}$")
+
+
 @st.cache_data(show_spinner="Loading market data...", ttl=3600)
 def load_history(
     provider: str, symbols: tuple[str, ...], start: date, end: date
-) -> dict[str, pd.DataFrame]:
+) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:
     base = get_settings().data
     dp = create_data_provider(DataSettings(**{**base.model_dump(), "provider": provider}))
-    return dp.get_many(list(symbols), start, end)
+    return dp.get_available(list(symbols), start, end)
 
 
 def parse_symbols(text: str) -> list[str]:
     return list(
-        dict.fromkeys(s.strip().upper() for s in text.replace("\n", ",").split(",") if s.strip())
+        dict.fromkeys(s.strip().upper() for s in re.split(r"[,\s;]+", text) if s.strip().strip("$"))
     )
+
+
+def split_valid_tickers(symbols: list[str]) -> tuple[list[str], list[str]]:
+    """Split into (well-formed, malformed) ticker strings; a leading ``$`` is allowed."""
+    good, bad = [], []
+    for s in symbols:
+        t = s.lstrip("$")
+        if TICKER_RE.match(t):
+            good.append(t)
+        else:
+            bad.append(s)
+    return list(dict.fromkeys(good)), bad
 
 
 def sidebar_data_inputs(
@@ -57,8 +73,18 @@ def sidebar_data_inputs(
         help="'synthetic' works offline; 'alpaca' needs API keys in .env",
     )
     symbols = parse_symbols(
-        st.sidebar.text_area("Symbols (comma separated)", default_symbols, key=f"{key}_syms")
+        st.sidebar.text_area(
+            "Symbols (comma separated)",
+            default_symbols,
+            key=f"{key}_syms",
+            help="Type any ticker, e.g. NVDA, RTX, TMUS. Unknown tickers are reported.",
+        )
     )
+    if provider == "synthetic":
+        st.sidebar.caption(
+            "Synthetic data generates prices for any ticker, so typos are not detected. "
+            "Use 'yahoo' or 'alpaca' for real prices."
+        )
     c1, c2 = st.sidebar.columns(2)
     start = c1.date_input("Start", date(2018, 1, 1), key=f"{key}_start")
     end = c2.date_input("End", date.today(), key=f"{key}_end")
@@ -66,16 +92,35 @@ def sidebar_data_inputs(
 
 
 def safe_load(
-    provider: str, symbols: list[str], start: date, end: date
+    provider: str,
+    symbols: list[str],
+    start: date,
+    end: date,
+    allow_partial: bool = False,
 ) -> dict[str, pd.DataFrame] | None:
-    if not symbols:
+    """Load bars, reporting invalid tickers in the UI.
+
+    With ``allow_partial`` the valid symbols are returned and the invalid ones listed in a
+    warning; otherwise any invalid symbol is an error and ``None`` is returned.
+    """
+    symbols, malformed = split_valid_tickers(symbols)
+    if not symbols and not malformed:
         st.warning("Enter at least one symbol.")
         return None
     try:
-        return load_history(provider, tuple(symbols), start, end)
+        data, errors = load_history(provider, tuple(symbols), start, end) if symbols else ({}, {})
     except (DataError, ValueError, KeyError) as exc:
         st.error(f"Could not load data: {exc}")
         return None
+    bad = {s: "not a valid ticker format" for s in malformed} | errors
+    if bad:
+        details = "\n".join(f"- **{s}**: {why}" for s, why in bad.items())
+        msg = f"Invalid or unavailable symbol(s): {', '.join(bad)}. Check the ticker.\n\n{details}"
+        if not allow_partial or not data:
+            st.error(msg)
+            return None
+        st.warning(msg)
+    return data or None
 
 
 def metric_cards(metrics: dict, keys: list[tuple[str, str]], cols: int = 4) -> None:
