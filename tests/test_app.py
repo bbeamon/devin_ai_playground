@@ -33,6 +33,8 @@ def test_data_explorer_synthetic():
     at.sidebar.selectbox[0].set_value("synthetic").run()
     assert not at.exception
     assert any(m.label == "Bars" for m in at.metric)
+    assert any("Compare tickers" in s.value for s in at.subheader)
+    assert "TradeLab" in " ".join(m.value for m in at.markdown)
 
 
 def test_data_explorer_any_ticker_and_invalid_symbol_warning():

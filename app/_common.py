@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import re
 import sys
 from datetime import date
@@ -24,6 +25,45 @@ PAPER_BANNER = (
     "Paper trading only. Live-money trading is disabled in this build; orders can only go "
     "to the in-memory simulator or an Alpaca paper account."
 )
+
+
+HEADER_CSS = """
+<style>
+.tl-page {
+  border-radius: 16px; padding: 1.4rem 1.8rem; margin: 0 0 1.2rem; overflow: hidden;
+  background: linear-gradient(90deg, rgba(11,16,32,.95) 0%, rgba(11,16,32,.75) 55%,
+              rgba(11,16,32,.35) 100%), url("__HERO__") right center / cover no-repeat;
+  box-shadow: 0 10px 30px rgba(124,58,237,.15);
+}
+.tl-page .tl-brand {
+  font-size: .8rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+  background: linear-gradient(90deg, #22d3ee, #a78bfa 55%, #f472b6);
+  -webkit-background-clip: text !important; background-clip: text !important;
+  -webkit-text-fill-color: transparent !important; color: transparent !important;
+}
+.tl-page .tl-page-title {
+  color: #f8fafc; font-size: 2.2rem; font-weight: 800; line-height: 1.15; margin: .2rem 0 0;
+}
+.tl-page .tl-page-sub { color: #cbd5e1; font-size: 1rem; margin: .35rem 0 0; }
+</style>
+"""
+
+
+@st.cache_resource
+def _hero_uri() -> str:
+    svg = (Path(__file__).parent / "assets" / "hero.svg").read_bytes()
+    return "data:image/svg+xml;base64," + base64.b64encode(svg).decode()
+
+
+def page_header(title: str, subtitle: str = "") -> None:
+    """Slim TradeLab-branded banner used at the top of every page."""
+    sub = f'<p class="tl-page-sub">{subtitle}</p>' if subtitle else ""
+    st.markdown(
+        HEADER_CSS.replace("__HERO__", _hero_uri())
+        + f'<div class="tl-page"><div class="tl-brand">TradeLab</div>'
+        f'<div class="tl-page-title">{title}</div>{sub}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 @st.cache_resource

@@ -16,9 +16,10 @@ from tradelab.config import AlpacaCredentials
 from tradelab.execution import Rebalancer
 from tradelab.safety import LiveTradingDisabledError
 from tradelab.strategies import StrategyConfig, StrategyEngine, list_strategies
+from tradelab.ui import charts
 
 st.set_page_config(page_title="Paper Trading", layout="wide")
-st.title("Paper Trading")
+_common.page_header("Paper Trading", "Simulator or Alpaca paper account. No real money.")
 st.warning(_common.PAPER_BANNER)
 
 
@@ -85,6 +86,12 @@ st.dataframe(
     ),
     use_container_width=True,
 )
+if positions:
+    mv = pd.Series({p.symbol: p.market_value for p in positions})
+    mv["Cash"] = max(0.0, acct.cash)
+    st.plotly_chart(
+        charts.allocation_donut(mv, "Account allocation by market value"), use_container_width=True
+    )
 
 st.subheader("Strategy rebalance")
 names = list(list_strategies())
