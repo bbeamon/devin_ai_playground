@@ -21,6 +21,8 @@ def test_home():
     at = _run(APP / "Home.py")
     assert not at.exception
     assert "Paper trading only" in at.info[0].value
+    page = " ".join(m.value for m in at.markdown)
+    assert "TradeLab" in page and "Bridget Beamon" in page and "About TradeLab" in page
 
 
 def test_data_explorer_synthetic():
