@@ -78,6 +78,19 @@ def test_backtest_page_runs_synthetic():
     assert any(m.label == "Sharpe" for m in at.metric)
 
 
+def test_backtest_failed_run_clears_previous_result():
+    at = AppTest.from_file(str(APP / "pages" / "2_Backtest.py"), default_timeout=180).run()
+    at.sidebar.selectbox[0].set_value("synthetic").run()
+    at.sidebar.button[0].click().run()
+    assert "last_result" in at.session_state
+    at.sidebar.text_area[0].set_value("AAPL, BAD!!").run()
+    at.sidebar.button[0].click().run()
+    assert not at.exception, at.exception
+    assert any("BAD!!" in e.value for e in at.error)
+    assert "last_result" not in at.session_state
+    assert not any(m.label == "Sharpe" for m in at.metric)
+
+
 def test_risk_page_needs_result_then_renders(universe_data):
     at = _run(APP / "pages" / "3_Risk_Analytics.py")
     assert not at.exception and "Run a backtest" in at.info[0].value

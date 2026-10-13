@@ -131,6 +131,8 @@ if cfg is not None and st.sidebar.button("Run backtest", type="primary"):
     symbols = cfg.universe + (
         [cfg.benchmark] if cfg.benchmark and cfg.benchmark not in cfg.universe else []
     )
+    for stale in ("last_result", "last_data"):
+        st.session_state.pop(stale, None)
     data = _common.safe_load(
         provider, symbols, cfg.start or dt.date(2010, 1, 1), cfg.end or dt.date.today()
     )
