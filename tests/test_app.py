@@ -174,3 +174,19 @@ def test_load_history_does_not_cache_failures(monkeypatch):
     assert _common.load_history(*args) == ({"AAPL": "bars"}, {})
     assert len(calls) == 2
     _common._cached_history.clear()
+
+
+def test_data_explorer_range_survives_page_switch():
+    from datetime import date
+
+    at = AppTest.from_file(str(APP / "Home.py"), default_timeout=120).run()
+    at.switch_page("pages/1_Data_Explorer.py").run()
+    at.selectbox(key="explorer_prov").set_value("synthetic")
+    at.date_input(key="explorer_start").set_value(date(2023, 1, 1))
+    at.date_input(key="explorer_end").set_value(date(2024, 6, 28)).run()
+    at.switch_page("pages/2_Backtest.py").run()
+    at.switch_page("pages/1_Data_Explorer.py").run()
+    assert not at.exception, at.exception
+    assert at.date_input(key="explorer_start").value == date(2023, 1, 1)
+    assert at.date_input(key="explorer_end").value == date(2024, 6, 28)
+    assert at.selectbox(key="explorer_prov").value == "synthetic"

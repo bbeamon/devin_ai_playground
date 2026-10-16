@@ -131,22 +131,41 @@ def split_valid_tickers(symbols: list[str]) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(good)), bad
 
 
+DATE_MIN = date(1980, 1, 1)
+
+
+def kept(widget: Any, label: str, *args: Any, key: str, default: Any, **kwargs: Any) -> Any:
+    """Render ``widget`` so its value survives switching to another page and back.
+
+    Streamlit drops a widget's state when a run doesn't draw it (e.g. after visiting another
+    page), so the value is also mirrored under a plain session-state key and restored from it.
+    """
+    store = f"_kept_{key}"
+    if key not in st.session_state:
+        st.session_state[key] = st.session_state.get(store, default)
+    value = widget(label, *args, key=key, **kwargs)
+    st.session_state[store] = value
+    return value
+
+
 def sidebar_data_inputs(
     default_symbols: str = "AAPL, MSFT, NVDA, GOOGL", key: str = "data"
 ) -> tuple[str, list[str], date, date]:
     st.sidebar.header("Data")
-    provider = st.sidebar.selectbox(
+    provider = kept(
+        st.sidebar.selectbox,
         "Provider",
         PROVIDERS,
-        index=PROVIDERS.index(get_settings().data.provider),
         key=f"{key}_prov",
+        default=get_settings().data.provider,
         help="'synthetic' works offline; 'alpaca' needs API keys in .env",
     )
     symbols = parse_symbols(
-        st.sidebar.text_area(
+        kept(
+            st.sidebar.text_area,
             "Symbols (comma separated)",
-            default_symbols,
             key=f"{key}_syms",
+            default=default_symbols,
             help="Type any ticker, e.g. NVDA, RTX, TMUS. Unknown tickers are reported.",
         )
     )
@@ -156,8 +175,10 @@ def sidebar_data_inputs(
             "Use 'yahoo' or 'alpaca' for real prices."
         )
     c1, c2 = st.sidebar.columns(2)
-    start = c1.date_input("Start", date(2018, 1, 1), key=f"{key}_start")
-    end = c2.date_input("End", date.today(), key=f"{key}_end")
+    start = kept(
+        c1.date_input, "Start", key=f"{key}_start", default=date(2018, 1, 1), min_value=DATE_MIN
+    )
+    end = kept(c2.date_input, "End", key=f"{key}_end", default=date.today(), min_value=DATE_MIN)
     return provider, symbols, start, end
 
 

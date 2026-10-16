@@ -20,7 +20,13 @@ name = st.sidebar.selectbox(
 schema = strategies[name].param_schema().get("properties", {})
 numeric = {k: v for k, v in schema.items() if v.get("type") in ("integer", "number")}
 provider, symbols, start, end = _common.sidebar_data_inputs("SPY, QQQ", key="opt")
-split = st.sidebar.date_input("OOS starts", dt.date(2022, 1, 1))
+split = _common.kept(
+    st.sidebar.date_input,
+    "OOS starts",
+    key="opt_split",
+    default=dt.date(2022, 1, 1),
+    min_value=_common.DATE_MIN,
+)
 _common.mobile_bar(f"**{name}** on {', '.join(symbols)} · {provider} data · OOS from {split}")
 
 grid = {}
