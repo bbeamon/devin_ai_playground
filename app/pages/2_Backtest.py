@@ -182,7 +182,7 @@ left.plotly_chart(
     charts.allocation_donut(alloc, f"Allocation on {result.weights.index[-1].date()}"),
     use_container_width=True,
 )
-right.plotly_chart(charts.monthly_returns_bar(result.returns.iloc[1:]), use_container_width=True)
+right.plotly_chart(charts.monthly_returns_bar(result.returns), use_container_width=True)
 if not result.trades.empty:
     st.plotly_chart(charts.cost_breakdown(result.trades), use_container_width=True)
 

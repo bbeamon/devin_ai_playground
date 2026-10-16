@@ -171,3 +171,8 @@ def test_yahoo_flattens_multiindex(monkeypatch):
 def test_yahoo_live_download():
     df = YahooDataProvider().get_history("SPY", "2024-01-02", "2024-01-31")
     assert len(df) > 15 and validate_ohlcv(df) == []
+
+
+def test_get_available_rejects_reversed_dates():
+    with pytest.raises(DataError, match="after end"):
+        SyntheticDataProvider().get_available(["AAPL"], "2023-01-01", "2022-01-01")

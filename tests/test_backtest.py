@@ -181,3 +181,14 @@ def test_day_zero_costs_included_in_returns():
     res = Backtester(s, RISK).run({"A": df}, weights_for(df, 1.0))
     assert res.returns.iloc[0] < 0
     assert (1 + res.returns).prod() * s.initial_cash == pytest.approx(res.equity.iloc[-1])
+
+
+def test_monthly_returns_compound_to_total_return_including_day_one_costs():
+    from tradelab.ui.charts import monthly_returns
+
+    df = make_ohlcv([100, 110, 121, 108.9])
+    settings = BacktestSettings(execution="close", slippage_bps=10, commission_pct=0.001)
+    res = Backtester(settings, RISK).run({"A": df}, weights_for(df))
+    total = res.equity.iloc[-1] / settings.initial_cash - 1
+    assert res.returns.iloc[0] < 0  # day-one trading costs
+    assert (1 + monthly_returns(res.returns)).prod() - 1 == pytest.approx(total)
