@@ -125,6 +125,9 @@ class DataProvider(ABC):
         Returns ``(data, errors)`` where ``errors`` maps each symbol that could not be loaded
         (unknown ticker, no bars in range, provider error) to a reason.
         """
+        s, e = to_timestamp(start), to_timestamp(end)
+        if s is not None and e is not None and s > e:
+            raise DataError(f"start {s.date()} is after end {e.date()}")
         data: dict[str, pd.DataFrame] = {}
         errors: dict[str, str] = {}
         for sym in symbols:

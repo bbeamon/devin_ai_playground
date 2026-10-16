@@ -142,3 +142,27 @@ def test_paper_rejected_manual_order_shows_error():
     assert not at.exception, at.exception
     assert any("rejected" in e.value for e in at.error)
     assert not any("rejected" in s.value for s in at.success)
+
+
+def test_load_history_does_not_cache_failures(monkeypatch):
+    from datetime import date
+
+    import _common
+
+    calls = []
+
+    class Flaky:
+        def get_available(self, symbols, start, end):
+            calls.append(symbols)
+            if len(calls) == 1:
+                return {}, {"AAPL": "provider timeout"}
+            return {"AAPL": "bars"}, {}
+
+    monkeypatch.setattr(_common, "create_data_provider", lambda _settings: Flaky())
+    _common._cached_history.clear()
+    args = ("synthetic", ("AAPL",), date(2022, 1, 1), date(2022, 2, 1))
+    assert _common.load_history(*args)[1] == {"AAPL": "provider timeout"}
+    assert _common.load_history(*args) == ({"AAPL": "bars"}, {})
+    assert _common.load_history(*args) == ({"AAPL": "bars"}, {})
+    assert len(calls) == 2
+    _common._cached_history.clear()
