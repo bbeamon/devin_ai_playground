@@ -17,8 +17,12 @@ _common.page_header("Backtest", "Run a cost-aware simulation of a strategy on hi
 
 base = _common.get_settings()
 mode = st.sidebar.radio("Configure via", ["Form", "YAML"], horizontal=True)
-provider = st.sidebar.selectbox(
-    "Data provider", _common.PROVIDERS, index=_common.PROVIDERS.index(base.data.provider)
+provider = _common.kept(
+    st.sidebar.selectbox,
+    "Data provider",
+    _common.PROVIDERS,
+    key="bt_prov",
+    default=base.data.provider,
 )
 
 cfg: StrategyConfig | None = None
@@ -37,10 +41,26 @@ if mode == "Form":
             params[pname] = int(st.sidebar.number_input(pname, value=int(default), step=1))
         elif spec.get("type") == "number":
             params[pname] = float(st.sidebar.number_input(pname, value=float(default)))
-    universe = _common.parse_symbols(st.sidebar.text_area("Universe", "AAPL, MSFT, NVDA, GOOGL"))
+    universe = _common.parse_symbols(
+        _common.kept(
+            st.sidebar.text_area, "Universe", key="bt_syms", default="AAPL, MSFT, NVDA, GOOGL"
+        )
+    )
     c1, c2 = st.sidebar.columns(2)
-    start = c1.date_input("Start", value=dt.date(2018, 1, 1))
-    end = c2.date_input("End")
+    start = _common.kept(
+        c1.date_input,
+        "Start",
+        key="bt_start",
+        default=dt.date(2018, 1, 1),
+        min_value=_common.DATE_MIN,
+    )
+    end = _common.kept(
+        c2.date_input,
+        "End",
+        key="bt_end",
+        default=dt.date.today(),
+        min_value=_common.DATE_MIN,
+    )
     benchmark = st.sidebar.text_input("Benchmark", "SPY").strip().upper() or None
     sizing = st.sidebar.selectbox("Sizing", ["equal_weight", "vol_target", "fixed_fraction"])
     sizing_cfg: dict = {"method": sizing}
