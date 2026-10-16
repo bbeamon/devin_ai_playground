@@ -242,11 +242,17 @@ def stat_bars(
             orientation="h",
             marker_color=color or [POS if x >= 0 else NEG for x in v.values],
             text=[f"{x:{fmt}}" for x in v.values],
-            textposition="auto",
+            textposition="outside",
+            cliponaxis=False,
         )
     )
+    lo, hi = min(0.0, float(v.min())), max(0.0, float(v.max()))
+    pad = 0.3 * (hi - lo or 1.0)
     fig.update_layout(
-        title=title, xaxis_tickformat=fmt, height=max(220, 45 * len(v) + 90), margin={"t": 40}
+        title=title,
+        xaxis={"tickformat": fmt, "range": [lo - pad if lo < 0 else 0, hi + pad if hi > 0 else 0]},
+        height=max(220, 45 * len(v) + 90),
+        margin={"t": 40},
     )
     return fig
 
@@ -262,10 +268,12 @@ def allocation_donut(values: pd.Series, title: str = "Allocation") -> go.Figure:
             hole=0.55,
             marker={"colors": PALETTE[: len(v)] if len(v) <= len(PALETTE) else None},
             textinfo="label+percent",
+            textposition="inside",
+            insidetextorientation="horizontal",
             sort=False,
         )
     )
-    fig.update_layout(title=title, height=360, margin={"t": 40, "b": 10}, showlegend=False)
+    fig.update_layout(title=title, height=360, margin={"t": 50, "b": 10}, showlegend=False)
     return fig
 
 
