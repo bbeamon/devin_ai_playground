@@ -187,7 +187,7 @@ left, right = st.columns(2)
 _common.plot(
     charts.allocation_donut(alloc, f"Allocation on {result.weights.index[-1].date()}"), left
 )
-_common.plot(charts.monthly_returns_bar(result.returns.iloc[1:]), right)
+_common.plot(charts.monthly_returns_bar(result.returns), right)
 if not result.trades.empty:
     _common.plot(charts.cost_breakdown(result.trades))
 

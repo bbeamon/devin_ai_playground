@@ -95,12 +95,22 @@ TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-^=]{0,14}$")
 
 
 @st.cache_data(show_spinner="Loading market data...", ttl=3600)
-def load_history(
+def _cached_history(
     provider: str, symbols: tuple[str, ...], start: date, end: date
 ) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:
     base = get_settings().data
     dp = create_data_provider(DataSettings(**{**base.model_dump(), "provider": provider}))
     return dp.get_available(list(symbols), start, end)
+
+
+def load_history(
+    provider: str, symbols: tuple[str, ...], start: date, end: date
+) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:
+    """Cached bar loading; results with per-symbol errors are not kept so failures can retry."""
+    data, errors = _cached_history(provider, symbols, start, end)
+    if errors:
+        _cached_history.clear(provider, symbols, start, end)
+    return data, errors
 
 
 def parse_symbols(text: str) -> list[str]:
