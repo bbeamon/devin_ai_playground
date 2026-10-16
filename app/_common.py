@@ -7,6 +7,7 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:  # allow `streamlit run app/Home.py` without `pip install -e .`
@@ -45,6 +46,25 @@ HEADER_CSS = """
   color: #f8fafc; font-size: 2.2rem; font-weight: 800; line-height: 1.15; margin: .2rem 0 0;
 }
 .tl-page .tl-page-sub { color: #cbd5e1; font-size: 1rem; margin: .35rem 0 0; }
+@media (max-width: 640px) {
+  .tl-page { padding: 1rem 1.2rem; }
+  .tl-page .tl-page-title { font-size: 1.6rem; }
+  [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {
+    flex-wrap: wrap !important; gap: .25rem 1rem !important;
+  }
+  [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"] {
+    flex: 0 0 calc(50% - .5rem) !important; width: calc(50% - .5rem) !important;
+    min-width: 0 !important;
+  }
+  [data-testid="stMetricValue"] { font-size: 1.45rem !important; }
+}
+.st-key-tl_mobile { display: none !important; }
+@media (max-width: 640px) {
+  .st-key-tl_mobile {
+    display: flex !important; background: #f4f3ff; border: 1px solid #ddd6fe;
+    border-radius: 12px; padding: .7rem .9rem;
+  }
+}
 </style>
 """
 
@@ -171,3 +191,34 @@ def metric_cards(metrics: dict, keys: list[tuple[str, str]], cols: int = 4) -> N
     for i, (k, label) in enumerate(keys):
         if k in fmt:
             columns[i % cols].metric(label, fmt[k])
+
+
+PLOT_CONFIG = {"displayModeBar": False, "responsive": True}
+_LEGEND = {"orientation": "h", "yanchor": "top", "y": -0.15, "xanchor": "left", "x": 0}
+
+
+def plot(fig: Any, where: Any = None) -> None:
+    """Render a Plotly figure full-width with a below-chart legend and no toolbar.
+
+    The toolbar collides with titles on narrow screens; zoom (drag/pinch, double-tap to
+    reset) and Streamlit's fullscreen button still work.
+    """
+    fig.update_layout(legend=_LEGEND)
+    if fig.layout.title.text:
+        fig.update_layout(title_font_size=15)
+    (where or st).plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
+
+
+def mobile_bar(summary: str, button_label: str | None = None) -> bool:
+    """Phone-only strip summarising the sidebar settings, with an optional action button.
+
+    On narrow screens the sidebar is hidden behind the top-left menu; this keeps the
+    current settings and the main action visible. Hidden by CSS on wider screens.
+    """
+    with st.container(key="tl_mobile"):
+        st.caption(f"{summary}  \nTap **»** (top-left) to change settings.")
+        if button_label:
+            return st.button(
+                button_label, type="primary", key="tl_mobile_run", use_container_width=True
+            )
+    return False

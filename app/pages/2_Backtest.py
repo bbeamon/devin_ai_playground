@@ -105,7 +105,15 @@ with st.sidebar.expander("Risk limits"):
     max_pos = st.slider("Max position weight", 0.05, 1.0, float(rk.max_position_weight), 0.05)
     max_gross = st.slider("Max gross leverage", 0.1, 2.0, float(rk.max_gross_leverage), 0.1)
 
-if cfg is not None and st.sidebar.button("Run backtest", type="primary"):
+run_clicked = cfg is not None and st.sidebar.button("Run backtest", type="primary")
+if cfg is not None:
+    run_clicked = (
+        _common.mobile_bar(
+            f"**{cfg.strategy}** on {', '.join(cfg.universe)} · {provider} data", "Run backtest"
+        )
+        or run_clicked
+    )
+if cfg is not None and run_clicked:
     try:
         settings = Settings(
             data=base.data,
@@ -168,34 +176,30 @@ _common.metric_cards(
         ("num_trades", "Trades"),
     ],
 )
-st.plotly_chart(
-    charts.equity_chart(result.equity, result.benchmark_returns), use_container_width=True
-)
-st.plotly_chart(charts.drawdown_chart(result.returns), use_container_width=True)
-st.plotly_chart(charts.weights_chart(result.weights), use_container_width=True)
+_common.plot(charts.equity_chart(result.equity, result.benchmark_returns))
+_common.plot(charts.drawdown_chart(result.returns))
+_common.plot(charts.weights_chart(result.weights))
 
 last_w = result.weights.iloc[-1] if len(result.weights) else pd.Series(dtype=float)
 alloc = last_w[last_w.abs() > 1e-9]
 alloc["Cash"] = max(0.0, 1.0 - float(last_w.sum()))
 left, right = st.columns(2)
-left.plotly_chart(
-    charts.allocation_donut(alloc, f"Allocation on {result.weights.index[-1].date()}"),
-    use_container_width=True,
+_common.plot(
+    charts.allocation_donut(alloc, f"Allocation on {result.weights.index[-1].date()}"), left
 )
-right.plotly_chart(charts.monthly_returns_bar(result.returns.iloc[1:]), use_container_width=True)
+_common.plot(charts.monthly_returns_bar(result.returns.iloc[1:]), right)
 if not result.trades.empty:
-    st.plotly_chart(charts.cost_breakdown(result.trades), use_container_width=True)
+    _common.plot(charts.cost_breakdown(result.trades))
 
 data = st.session_state.get("last_data", {})
 if result.signals is not None and data:
     sym = st.selectbox("Inspect signals for", list(result.signals.columns))
-    st.plotly_chart(
+    _common.plot(
         charts.price_chart(
             data[sym].loc[result.signals.index[0] :],
             sym,
             signals=result.signals[sym].gt(0).astype(float),
-        ),
-        use_container_width=True,
+        )
     )
 
 tab1, tab2, tab3 = st.tabs(["Trades", "All metrics", "Config"])

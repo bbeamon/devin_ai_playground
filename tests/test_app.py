@@ -78,6 +78,14 @@ def test_backtest_page_runs_synthetic():
     assert any(m.label == "Sharpe" for m in at.metric)
 
 
+def test_backtest_mobile_run_button():
+    at = AppTest.from_file(str(APP / "pages" / "2_Backtest.py"), default_timeout=180).run()
+    at.sidebar.selectbox[0].set_value("synthetic").run()
+    at.button(key="tl_mobile_run").click().run()
+    assert not at.exception, at.exception
+    assert "last_result" in at.session_state
+
+
 def test_backtest_failed_run_clears_previous_result():
     at = AppTest.from_file(str(APP / "pages" / "2_Backtest.py"), default_timeout=180).run()
     at.sidebar.selectbox[0].set_value("synthetic").run()

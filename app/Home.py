@@ -40,7 +40,7 @@ st.markdown(
 }}
 .tl-pill.paper {{ color: #34d399; border-color: rgba(52,211,153,.5); }}
 .tl-card {{
-  border-radius: 16px; padding: 1.2rem 1.3rem; min-height: 260px;
+  border-radius: 16px; padding: 1.2rem 1.3rem; height: 100%;
   background: linear-gradient(160deg, rgba(34,211,238,.08), rgba(167,139,250,.08));
   border: 1px solid rgba(148,163,184,.25);
 }}
@@ -48,7 +48,14 @@ st.markdown(
   display: inline-block; font-weight: 800; font-size: .9rem; color: #fff; padding: .2rem .55rem;
   border-radius: 8px; background: linear-gradient(90deg, #22d3ee, #a78bfa);
 }}
-.tl-card h4 {{ margin: .2rem 0 .4rem; }}
+.tl-card h4 {{ margin: .2rem 0 .4rem; overflow-wrap: normal; word-break: normal; hyphens: manual; }}
+@media (min-width: 1100px) {{ .tl-card {{ min-height: 230px; }} }}
+@media (min-width: 641px) and (max-width: 1099px) {{
+  [data-testid="stHorizontalBlock"]:has(.tl-card) {{ flex-wrap: wrap !important; }}
+  [data-testid="stHorizontalBlock"]:has(.tl-card) > [data-testid="stColumn"] {{
+    flex: 1 1 calc(33% - 1rem) !important; min-width: calc(33% - 1rem) !important;
+  }}
+}}
 .tl-card p {{ margin: 0; opacity: .85; font-size: .95rem; }}
 </style>
 <div class="tl-hero">

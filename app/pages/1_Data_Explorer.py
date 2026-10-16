@@ -14,6 +14,7 @@ _common.page_header(
 provider, symbols, start, end = _common.sidebar_data_inputs(
     default_symbols="NVDA, RTX, TMUS, AAPL, MSFT", key="explorer"
 )
+_common.mobile_bar(f"{provider} data · {', '.join(symbols)} · {start} to {end}")
 data = _common.safe_load(provider, symbols, start, end, allow_partial=True)
 if data:
     sym = st.selectbox("Symbol", list(data))
@@ -38,29 +39,26 @@ if data:
     if show_bb:
         lo, mid, hi = ind.bollinger_bands(df["close"])
         overlays.update({"BB lower": lo, "BB upper": hi})
-    st.plotly_chart(charts.price_chart(df, sym, overlays), use_container_width=True)
+    _common.plot(charts.price_chart(df, sym, overlays))
     if show_rsi:
         st.line_chart(ind.rsi(df["close"]).rename("RSI(14)"), height=200)
 
     closes = {k: v["close"] for k, v in data.items()}
     st.subheader("Compare tickers")
-    st.plotly_chart(charts.growth_chart(closes), use_container_width=True)
+    _common.plot(charts.growth_chart(closes))
     stats = charts.symbol_stats(closes)
     if not stats.empty:
         a, b = st.columns(2)
-        a.plotly_chart(
-            charts.stat_bars(stats["total_return"], "Total return over period"),
-            use_container_width=True,
-        )
-        b.plotly_chart(
+        _common.plot(charts.stat_bars(stats["total_return"], "Total return over period"), a)
+        _common.plot(
             charts.stat_bars(
                 stats["volatility"], "Annualised volatility (risk)", color=charts.PALETTE[1]
             ),
-            use_container_width=True,
+            b,
         )
     if len(data) > 1:
         rets = pd.DataFrame(closes).pct_change().dropna(how="all")
-        st.plotly_chart(charts.correlation_heatmap(rets), use_container_width=True)
+        _common.plot(charts.correlation_heatmap(rets))
     st.subheader("Raw data")
     st.dataframe(df.tail(250), use_container_width=True)
     st.download_button("Download CSV", df.to_csv().encode(), f"{sym}.csv", "text/csv")
