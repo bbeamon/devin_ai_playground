@@ -34,6 +34,7 @@ settings = _common.get_settings()
 broker_name = st.sidebar.selectbox(
     "Broker", ["simulated", "alpaca_paper", "ibkr", "schwab", "fidelity"]
 )
+_common.mobile_bar(f"Broker: **{broker_name}** (paper only)")
 
 
 def get_broker():
@@ -89,9 +90,7 @@ st.dataframe(
 if positions:
     mv = pd.Series({p.symbol: p.market_value for p in positions})
     mv["Cash"] = max(0.0, acct.cash)
-    st.plotly_chart(
-        charts.allocation_donut(mv, "Account allocation by market value"), use_container_width=True
-    )
+    _common.plot(charts.allocation_donut(mv, "Account allocation by market value"))
 
 st.subheader("Strategy rebalance")
 names = list(list_strategies())

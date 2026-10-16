@@ -118,8 +118,20 @@ def returns_histogram(returns: pd.Series, level: float = 0.95) -> go.Figure:
     var = m.value_at_risk(r, level)
     cvar = m.conditional_var(r, level)
     fig = go.Figure(go.Histogram(x=r, nbinsx=80, name="Daily returns"))
-    fig.add_vline(x=-var, line_dash="dash", line_color="orange", annotation_text=f"VaR {level:.0%}")
-    fig.add_vline(x=-cvar, line_dash="dot", line_color="red", annotation_text="CVaR")
+    fig.add_vline(
+        x=-var,
+        line_dash="dash",
+        line_color="orange",
+        annotation_text=f"VaR {level:.0%}",
+        annotation_position="top right",
+    )
+    fig.add_vline(
+        x=-cvar,
+        line_dash="dot",
+        line_color="red",
+        annotation_text="CVaR",
+        annotation_position="top left",
+    )
     fig.update_layout(
         title="Return distribution", xaxis_tickformat=".1%", height=350, margin={"t": 40}
     )
@@ -138,12 +150,21 @@ def monthly_heatmap(returns: pd.Series) -> go.Figure:
             y=[str(y) for y in months.index],
             colorscale="RdYlGn",
             zmid=0,
-            text=[[f"{v:.1%}" if pd.notna(v) else "" for v in row] for row in months.values],
+            text=[[f"{v * 100:.0f}" if pd.notna(v) else "" for v in row] for row in months.values],
             texttemplate="%{text}",
+            textfont={"size": 11},
+            hovertemplate="%{y} %{x}: %{z:.2%}<extra></extra>",
+            colorbar={"thickness": 10, "tickformat": ".0%"},
+            xgap=1,
+            ygap=1,
             hoverongaps=False,
         )
     )
-    fig.update_layout(title="Monthly returns", height=40 * len(months) + 120, margin={"t": 40})
+    fig.update_layout(
+        title="Monthly returns (%)",
+        height=34 * len(months) + 120,
+        margin={"t": 40, "l": 10, "r": 10},
+    )
     return fig
 
 
@@ -221,11 +242,17 @@ def stat_bars(
             orientation="h",
             marker_color=color or [POS if x >= 0 else NEG for x in v.values],
             text=[f"{x:{fmt}}" for x in v.values],
-            textposition="auto",
+            textposition="outside",
+            cliponaxis=False,
         )
     )
+    lo, hi = min(0.0, float(v.min())), max(0.0, float(v.max()))
+    pad = 0.3 * (hi - lo or 1.0)
     fig.update_layout(
-        title=title, xaxis_tickformat=fmt, height=max(220, 45 * len(v) + 90), margin={"t": 40}
+        title=title,
+        xaxis={"tickformat": fmt, "range": [lo - pad if lo < 0 else 0, hi + pad if hi > 0 else 0]},
+        height=max(220, 45 * len(v) + 90),
+        margin={"t": 40},
     )
     return fig
 
@@ -241,10 +268,12 @@ def allocation_donut(values: pd.Series, title: str = "Allocation") -> go.Figure:
             hole=0.55,
             marker={"colors": PALETTE[: len(v)] if len(v) <= len(PALETTE) else None},
             textinfo="label+percent",
+            textposition="inside",
+            insidetextorientation="horizontal",
             sort=False,
         )
     )
-    fig.update_layout(title=title, height=360, margin={"t": 40, "b": 10}, showlegend=False)
+    fig.update_layout(title=title, height=360, margin={"t": 50, "b": 10}, showlegend=False)
     return fig
 
 

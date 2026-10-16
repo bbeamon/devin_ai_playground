@@ -21,6 +21,7 @@ schema = strategies[name].param_schema().get("properties", {})
 numeric = {k: v for k, v in schema.items() if v.get("type") in ("integer", "number")}
 provider, symbols, start, end = _common.sidebar_data_inputs("SPY, QQQ", key="opt")
 split = st.sidebar.date_input("OOS starts", dt.date(2022, 1, 1))
+_common.mobile_bar(f"**{name}** on {', '.join(symbols)} · {provider} data · OOS from {split}")
 
 grid = {}
 st.subheader("Parameter ranges")
@@ -58,13 +59,16 @@ if saved is not None:
     sort_col = f"oos_{metric}"
     if sort_col in df:
         df = df.sort_values(sort_col, ascending=False)  # max_drawdown is negative: higher is better
+    stat_cols = [
+        c
+        for c in df.columns
+        if c.split("_", 1)[-1] in ("sharpe", "cagr", "max_drawdown", "calmar", "sortino")
+    ]
+    oos_cols = [c for c in stat_cols if c.startswith("oos_")]
     cols = (
         [k for k in grid_keys if k in df]
-        + [
-            c
-            for c in df.columns
-            if c.split("_", 1)[-1] in ("sharpe", "cagr", "max_drawdown", "calmar", "sortino")
-        ]
+        + oos_cols
+        + [c for c in stat_cols if c not in oos_cols]
         + (["error"] if "error" in df else [])
     )
     st.dataframe(df[cols], use_container_width=True)
